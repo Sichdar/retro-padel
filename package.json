@@ -1,0 +1,23 @@
+{
+  "name": "retro-padel",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Padel Rush '94: an original 16-bit style padel game for phones",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "5.3.0",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
+  }
+}
