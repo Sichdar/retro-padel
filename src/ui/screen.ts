@@ -1,4 +1,4 @@
-// Phone screen helpers: full screen and landscape lock where the phone allows it.
+// Phone screen helpers: full screen and portrait lock where the phone allows it.
 // iPhones don't allow either from a web page; the game simply carries on there.
 
 export function isPhone(): boolean {
@@ -11,7 +11,7 @@ export function goFullscreenOnPhone(): void {
   try {
     if (!document.fullscreenElement && el.requestFullscreen) {
       el.requestFullscreen({ navigationUI: 'hide' })
-        .then(() => lockLandscape())
+        .then(() => lockPortrait())
         .catch(() => undefined);
     }
   } catch {
@@ -19,10 +19,10 @@ export function goFullscreenOnPhone(): void {
   }
 }
 
-function lockLandscape(): void {
+function lockPortrait(): void {
   const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
   try {
-    o?.lock?.('landscape').catch(() => undefined);
+    o?.lock?.('portrait').catch(() => undefined);
   } catch {
     /* not supported */
   }

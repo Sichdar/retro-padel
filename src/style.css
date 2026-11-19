@@ -32,7 +32,7 @@ body {
   image-rendering: crisp-edges;
 }
 
-/* "Turn your phone" screen, only when the screen is upright. */
+/* "Turn your phone" screen, only when a phone is held sideways. */
 #rotate {
   display: none;
   position: fixed;
@@ -69,15 +69,17 @@ body {
 @keyframes turn {
   0%,
   45% {
-    transform: rotate(0deg);
+    transform: rotate(-90deg);
   }
   50%,
   95% {
-    transform: rotate(-90deg);
+    transform: rotate(0deg);
   }
 }
 
-@media (orientation: portrait) {
+/* Only on phones (touch screen, short side under 500 px) held sideways;
+   a computer window just shows the upright game with black bars. */
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 500px) {
   #rotate {
     display: flex;
   }

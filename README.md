@@ -7,7 +7,7 @@ It runs in the phone's web browser: nothing to download from an app store.
 
 **https://sichdar.github.io/retro-padel/**
 
-Hold the phone sideways (landscape).
+Hold the phone upright (portrait).
 
 > 🚧 **Work in progress.** Right now (milestone 2 of 7) you get the title screen, the menu and the **Ball Lab**:
 > a test court where you fire the ball at the floor, glass, mesh and net and watch how it bounces.

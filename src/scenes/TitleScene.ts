@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
-import { GAME_VERSION, GAME_W } from '../config';
-import { COURT_LENGTH, COURT_WIDTH, DEFAULT_VIEW, project } from '../game/projection';
+import { GAME_H, GAME_VERSION, GAME_W } from '../config';
+import { COURT_LENGTH, COURT_WIDTH, DEFAULT_VIEW, nearerThanNet, project } from '../game/projection';
 import { sfxStart, unlockAudio, vibrate } from '../audio/sfx';
 import { PAL } from '../ui/palette';
 import { pixelText } from '../ui/pixelFont';
@@ -15,11 +15,11 @@ export class TitleScene extends Phaser.Scene {
   private ball!: Phaser.GameObjects.Image;
   private shadow!: Phaser.GameObjects.Image;
   // A simple demo ball (real physics come in milestone 2).
-  private bx = 3;
-  private by = 6;
+  private bx = 4;
+  private by = 3;
   private bz = 1.5;
-  private vx = 7;
-  private vy = -1.5;
+  private vx = 6;
+  private vy = 2.2;
   private vz = 0;
   private leaving = false;
 
@@ -36,13 +36,13 @@ export class TitleScene extends Phaser.Scene {
     this.ball = this.add.image(0, 0, 'ball');
 
     // Logo drops in with a bounce.
-    const logo1 = pixelText(this, GAME_W / 2, 34, t.title1, {
+    const logo1 = pixelText(this, GAME_W / 2, 128, t.title1, {
       colour: PAL.yellow,
       outline: PAL.redDark,
       shadow: PAL.ink,
       scale: 4,
     });
-    const logo2 = pixelText(this, GAME_W / 2 + 18, 64, t.title2, {
+    const logo2 = pixelText(this, GAME_W / 2 + 12, 160, t.title2, {
       colour: PAL.white,
       outline: PAL.red,
       shadow: PAL.ink,
@@ -50,17 +50,17 @@ export class TitleScene extends Phaser.Scene {
     });
     logo1.y = -40;
     logo2.x = GAME_W + 120;
-    this.tweens.add({ targets: logo1, y: 34, duration: 700, ease: 'Bounce.easeOut' });
-    this.tweens.add({ targets: logo2, x: GAME_W / 2 + 18, duration: 400, delay: 600, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: logo1, y: 128, duration: 700, ease: 'Bounce.easeOut' });
+    this.tweens.add({ targets: logo2, x: GAME_W / 2 + 12, duration: 400, delay: 600, ease: 'Back.easeOut' });
 
     const isTouch = window.matchMedia('(pointer: coarse)').matches;
-    const tap = pixelText(this, GAME_W / 2, 100, isTouch ? t.tapToStart : t.pressToStart, {
+    const tap = pixelText(this, GAME_W / 2, 236, isTouch ? t.tapToStart : t.pressToStart, {
       colour: PAL.white,
       outline: PAL.ink,
     });
     this.time.addEvent({ delay: 450, loop: true, callback: () => tap.setVisible(!tap.visible) });
 
-    pixelText(this, GAME_W / 2, 211, t.copyright + GAME_VERSION, { colour: PAL.grey, outline: PAL.ink });
+    pixelText(this, GAME_W / 2, GAME_H - 8, t.copyright + GAME_VERSION, { colour: PAL.grey, outline: PAL.ink });
 
     // Settings icon (the settings screen arrives in milestone 4).
     const gear = this.add.image(GAME_W - 14, 14, ensureGearTexture(this)).setInteractive({ useHandCursor: true });
@@ -113,14 +113,14 @@ export class TitleScene extends Phaser.Scene {
       this.vz = 6.5;
     }
     if (this.bx < 1.5 || this.bx > COURT_LENGTH - 1.5) this.vx = -this.vx;
-    if (this.by < 2.5 || this.by > COURT_WIDTH - 1) this.vy = -this.vy;
+    if (this.by < 1 || this.by > COURT_WIDTH - 1) this.vy = -this.vy;
 
     const ground = project(DEFAULT_VIEW, this.bx, this.by, 0);
     const air = project(DEFAULT_VIEW, this.bx, this.by, this.bz);
     this.shadow.setPosition(Math.round(ground.x), Math.round(ground.y));
     this.ball.setPosition(Math.round(air.x), Math.round(air.y) - 2);
-    // In front of the net on the left half, behind it on the right half.
-    const depth = this.bx < COURT_LENGTH / 2 ? 12 : 8;
+    // In front of the net on the near (bottom) half, behind it on the far half.
+    const depth = nearerThanNet(DEFAULT_VIEW, this.bx) ? 12 : 8;
     this.ball.setDepth(depth);
     this.shadow.setDepth(depth - 1);
   }

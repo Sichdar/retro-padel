@@ -12,8 +12,8 @@ export interface ScaleResult {
 /**
  * Pick the largest whole-number scale that fits the space available.
  * The count is done in *device* pixels, because phones have 2-3 device pixels
- * per CSS pixel: a 384x216 game on a 844x390 iPhone screen (3 device pixels
- * per CSS pixel) gets factor 5, i.e. 1920x1080 device pixels.
+ * per CSS pixel: a 216x384 game on a 390x844 upright iPhone (3 device pixels
+ * per CSS pixel) gets factor 5, i.e. 1080x1920 device pixels.
  */
 export function computeScale(
   availCssW: number,

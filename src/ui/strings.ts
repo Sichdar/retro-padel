@@ -15,7 +15,7 @@ export const en = {
   comingSoon: 'COMING SOON!',
   back: 'BACK',
   settings: 'SETTINGS',
-  rotate: 'TURN YOUR PHONE SIDEWAYS',
+  rotate: 'TURN YOUR PHONE UPRIGHT',
   menuLab: 'BALL LAB',
   labTitle: 'BALL LAB',
   labHint: 'TAP THE COURT TO AIM',

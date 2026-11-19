@@ -13,7 +13,7 @@ import {
 } from '../game/court';
 import { PAL } from './palette';
 
-// Draws the padel court (floor, lines, glass, mesh, net) in the 3/4 view.
+// Draws the padel court (floor, lines, glass, mesh, net) in the upright view.
 // All sizes come from game/court.ts, the same numbers the physics uses.
 
 type G = Phaser.GameObjects.Graphics;
@@ -70,35 +70,39 @@ function glassPanel(g: G, view: CourtView, from: [number, number], to: [number, 
   line(g, view, [x1, y1, 0], [x1, y1, z1], PAL.glass, 0.6);
 }
 
-/** Everything behind the players: apron, floor, lines, far and back walls. */
+/** Everything behind the players: apron, floor, lines, side walls and the far back wall. */
 export function drawCourtBack(g: G, view: CourtView): void {
   const L = COURT_LENGTH;
   const W = COURT_WIDTH;
+  const ends = view.flipped ? { far: L, near: 0 } : { far: 0, near: L };
 
   // Ground around the court.
-  quad(g, view, [[-1.5, -0.6, 0], [L + 1.5, -0.6, 0], [L + 1.5, W + 0.6, 0], [-1.5, W + 0.6, 0]], PAL.courtDark);
-  // Playing floor, with a slightly lighter strip down the middle for depth.
+  quad(g, view, [[-1.2, -0.8, 0], [L + 1.2, -0.8, 0], [L + 1.2, W + 0.8, 0], [-1.2, W + 0.8, 0]], PAL.courtDark);
+  // Playing floor, with faint bands across it for depth.
   quad(g, view, [[0, 0, 0], [L, 0, 0], [L, W, 0], [0, W, 0]], PAL.court);
-  quad(g, view, [[0, W * 0.5, 0], [L, W * 0.5, 0], [L, W, 0], [0, W, 0]], PAL.courtLight, 0.25);
-
-  // Lines: service lines and centre service line.
-  const sL = L / 2 - SERVICE_FROM_NET;
-  const sR = L / 2 + SERVICE_FROM_NET;
-  line(g, view, [sL, 0, 0], [sL, W, 0], PAL.lines);
-  line(g, view, [sR, 0, 0], [sR, W, 0], PAL.lines);
-  line(g, view, [sL, W / 2, 0], [sR, W / 2, 0], PAL.lines);
-
-  // Far side wall: glass near each end, mesh in between.
-  meshPanel(g, view, [SIDE_GLASS_LEN, 0], [L - SIDE_GLASS_LEN, 0], 0, SIDE_MESH_TOP);
-  for (const [a, b] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
-    glassPanel(g, view, [a, 0], [b, 0], WALL_GLASS);
-    meshPanel(g, view, [a, 0], [b, 0], WALL_GLASS, WALL_TOP);
+  for (let x = 0; x < L; x += 5) {
+    quad(g, view, [[x, 0, 0], [x + 2.5, 0, 0], [x + 2.5, W, 0], [x, W, 0]], PAL.courtLight, 0.18);
   }
 
-  // Back walls (left and right ends): glass with mesh on top.
-  for (const x of [0, L]) {
-    glassPanel(g, view, [x, 0], [x, W], WALL_GLASS);
-    meshPanel(g, view, [x, 0], [x, W], WALL_GLASS, WALL_TOP);
+  // Lines: service lines and centre service line.
+  const s1 = L / 2 - SERVICE_FROM_NET;
+  const s2 = L / 2 + SERVICE_FROM_NET;
+  line(g, view, [s1, 0, 0], [s1, W, 0], PAL.lines);
+  line(g, view, [s2, 0, 0], [s2, W, 0], PAL.lines);
+  line(g, view, [s1, W / 2, 0], [s2, W / 2, 0], PAL.lines);
+
+  // Far back wall (top of the screen): glass with mesh on top.
+  glassPanel(g, view, [ends.far, 0], [ends.far, W], WALL_GLASS);
+  meshPanel(g, view, [ends.far, 0], [ends.far, W], WALL_GLASS, WALL_TOP);
+
+  // Side walls (left and right): glass near each end, mesh in between.
+  // They lean outwards in this view, so they never cover the court.
+  for (const y of [0, W]) {
+    meshPanel(g, view, [SIDE_GLASS_LEN, y], [L - SIDE_GLASS_LEN, y], 0, SIDE_MESH_TOP);
+    for (const [a, b] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
+      glassPanel(g, view, [a, y], [b, y], WALL_GLASS);
+      meshPanel(g, view, [a, y], [b, y], WALL_GLASS, WALL_TOP);
+    }
   }
 }
 
@@ -118,20 +122,16 @@ export function drawNet(g: G, view: CourtView): void {
 }
 
 /**
- * The near side wall, in front of everything: only faint outlines, so it
- * never hides the players or the ball.
+ * The near back wall (bottom of the screen), in front of everything: only
+ * faint outlines, so it never hides the players or the ball.
  */
 export function drawNearWall(g: G, view: CourtView): void {
-  const L = COURT_LENGTH;
+  const x = view.flipped ? 0 : COURT_LENGTH;
   const W = COURT_WIDTH;
   const a = 0.3;
-  for (const [x0, x1] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
-    line(g, view, [x0, W, WALL_GLASS], [x1, W, WALL_GLASS], PAL.glass, a + 0.2);
-    line(g, view, [x0, W, WALL_TOP], [x1, W, WALL_TOP], PAL.grey, a);
-  }
-  line(g, view, [SIDE_GLASS_LEN, W, SIDE_MESH_TOP], [L - SIDE_GLASS_LEN, W, SIDE_MESH_TOP], PAL.grey, a);
-  for (const x of [0, SIDE_GLASS_LEN, L / 2, L - SIDE_GLASS_LEN, L]) {
-    const top = x === 0 || x === L || x === SIDE_GLASS_LEN || x === L - SIDE_GLASS_LEN ? WALL_TOP : SIDE_MESH_TOP;
-    line(g, view, [x, W, 0], [x, W, top], PAL.grey, a);
+  line(g, view, [x, 0, WALL_GLASS], [x, W, WALL_GLASS], PAL.glass, a + 0.2);
+  line(g, view, [x, 0, WALL_TOP], [x, W, WALL_TOP], PAL.grey, a);
+  for (const y of [0, W / 4, W / 2, (W * 3) / 4, W]) {
+    line(g, view, [x, y, 0], [x, y, WALL_TOP], PAL.grey, a);
   }
 }

@@ -9,6 +9,13 @@ describe('computeScale', () => {
     expect(r.cssHeight).toBeCloseTo(360);
   });
 
+  it('fills an upright iPhone at factor 5 (216x384 game on 390x844, 3 dots per point)', () => {
+    const r = computeScale(390, 844, 3, 216, 384);
+    expect(r.factor).toBe(5);
+    expect(r.cssWidth).toBeCloseTo(360);
+    expect(r.cssHeight).toBeCloseTo(640);
+  });
+
   it('fits a 1080p desktop window at factor 5 with dpr 1', () => {
     const r = computeScale(1920, 1080, 1, 384, 216);
     expect(r.factor).toBe(5);

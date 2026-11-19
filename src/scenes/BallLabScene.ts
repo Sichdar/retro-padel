@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { GAME_W } from '../config';
+import { GAME_H, GAME_W } from '../config';
 import { NET_X } from '../game/court';
 import { FixedStep } from '../game/fixedStep';
 import { Ball, BallEvent, aimBall, makeBall, speedOf, stepBall } from '../game/physics';
-import { DEFAULT_VIEW, project, unprojectGround } from '../game/projection';
+import { DEFAULT_VIEW, nearerThanNet, project, unprojectGround } from '../game/projection';
 import { makeRng } from '../game/rng';
 import {
   sfxBounce,
@@ -89,27 +89,29 @@ export class BallLabScene extends Phaser.Scene {
 
     // Top bar.
     pixelText(this, 6, 6, t.labTitle, { colour: PAL.yellow, outline: PAL.ink, originX: 0, originY: 0 }).setDepth(DEPTH_UI);
-    pixelText(this, 6, 16, t.labHint, { colour: PAL.grey, outline: PAL.ink, originX: 0, originY: 0 }).setDepth(DEPTH_UI);
+    pixelText(this, 6, 18, t.labHint, { colour: PAL.grey, outline: PAL.ink, originX: 0, originY: 0 }).setDepth(DEPTH_UI);
     this.readout = this.add
-      .bitmapText(GAME_W - 4, 26, 'px8', '')
+      .bitmapText(GAME_W - 4, 30, 'px8', '')
       .setOrigin(1, 0)
       .setTint(PAL.white)
       .setDepth(DEPTH_UI);
     makeButton(this, GAME_W - 26, 12, 48, 20, t.back, () => this.leave(), PAL.greyDark).setDepth(DEPTH_UI);
 
-    // Preset buttons along the bottom.
+    // Preset buttons along the bottom, two rows of four.
     const labels = [...PRESET_ORDER, t.labAuto];
-    const w = 44;
+    const perRow = 4;
+    const w = 50;
+    const h = 22;
     const gap = 3;
-    const x0 = (GAME_W - (labels.length * w + (labels.length - 1) * gap)) / 2 + w / 2;
+    const x0 = (GAME_W - (perRow * w + (perRow - 1) * gap)) / 2 + w / 2;
     labels.forEach((label, i) => {
       const isAuto = label === t.labAuto;
       const btn = makeButton(
         this,
-        x0 + i * (w + gap),
-        204,
+        x0 + (i % perRow) * (w + gap),
+        GAME_H - 44 + Math.floor(i / perRow) * (h + gap),
         w,
-        20,
+        h,
         label,
         () => (isAuto ? this.setAuto(!this.auto) : (this.setAuto(false), this.fire(label))),
         isAuto ? PAL.purple : PAL.blue,
@@ -120,7 +122,7 @@ export class BallLabScene extends Phaser.Scene {
     // Tap the court to aim there.
     this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
       unlockAudio();
-      if (over.length > 0 || p.y > 192 || p.y < 28) return;
+      if (over.length > 0 || p.y > GAME_H - 58 || p.y < 30) return;
       this.setAuto(false);
       this.fireAt(p.x, p.y);
     });
@@ -218,7 +220,7 @@ export class BallLabScene extends Phaser.Scene {
 
   private showEvent(text: string, colour: number): void {
     this.eventLabel?.destroy();
-    const c = pixelText(this, GAME_W / 2, 40, text, { colour, outline: PAL.ink, shadow: PAL.black, scale: 2 }).setDepth(DEPTH_UI);
+    const c = pixelText(this, GAME_W / 2, 110, text, { colour, outline: PAL.ink, shadow: PAL.black, scale: 2 }).setDepth(DEPTH_UI);
     this.eventLabel = c;
     this.tweens.add({ targets: c, alpha: { from: 1, to: 0 }, delay: 600, duration: 400 });
   }
@@ -237,13 +239,13 @@ export class BallLabScene extends Phaser.Scene {
     const s = this.add
       .image(Math.round(p.x), Math.round(p.y), 'spark')
       .setTint(colour)
-      .setDepth(e.x < NET_X ? DEPTH_NET + 3 : DEPTH_NET - 3);
+      .setDepth(nearerThanNet(DEFAULT_VIEW, e.x) ? DEPTH_NET + 3 : DEPTH_NET - 3);
     this.tweens.add({ targets: s, scale: { from: 0.6, to: 1.6 }, alpha: { from: 1, to: 0 }, duration: 300, onComplete: () => s.destroy() });
   }
 
   private draw(): void {
     const b = this.ball;
-    const inFront = b.x < NET_X;
+    const inFront = nearerThanNet(DEFAULT_VIEW, b.x);
     const ground = project(DEFAULT_VIEW, b.x, b.y, 0);
     const air = project(DEFAULT_VIEW, b.x, b.y, b.z);
     const depth = inFront ? DEPTH_NET + 2 : DEPTH_NET - 2;
