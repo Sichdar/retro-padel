@@ -6,7 +6,7 @@ import { t } from '../ui/strings';
 import { makeButton, toast } from '../ui/widgets';
 import { BACKDROP_KEY, ensureBackdrop } from './backdrop';
 
-// Main menu. In milestone 1 every mode says "coming soon".
+// Main menu. QUICK MATCH plays against the computer; the other modes come later.
 export class MenuScene extends Phaser.Scene {
   private buttons: Phaser.GameObjects.Container[] = [];
   private actions: (() => void)[] = [];
@@ -33,9 +33,14 @@ export class MenuScene extends Phaser.Scene {
     this.buttons = [];
     this.actions = [];
     // One column of big buttons, easy to reach with a thumb.
+    const quick = () => {
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Match'));
+    };
     items.forEach(([label, colour], i) => {
-      this.buttons.push(makeButton(this, GAME_W / 2, 120 + i * 54, 172, 42, label, soon, colour));
-      this.actions.push(soon);
+      const action = i === 0 ? quick : soon;
+      this.buttons.push(makeButton(this, GAME_W / 2, 120 + i * 54, 172, 42, label, action, colour));
+      this.actions.push(action);
     });
 
     const back = () => {

@@ -8,6 +8,7 @@ import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { MenuScene } from './scenes/MenuScene';
 import { BallLabScene } from './scenes/BallLabScene';
+import { MatchScene } from './scenes/MatchScene';
 
 const parent = document.getElementById('game')!;
 const rotateText = document.querySelector('#rotate p');
@@ -29,7 +30,7 @@ const game = new Phaser.Game({
     autoRound: false,
   },
   fps: { target: 60 },
-  scene: [BootScene, TitleScene, MenuScene, BallLabScene],
+  scene: [BootScene, TitleScene, MenuScene, BallLabScene, MatchScene],
 });
 
 // Scale the game up by whole numbers (crisp pixels), centred, inside the

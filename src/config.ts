@@ -3,4 +3,4 @@
 export const GAME_W = 216;
 export const GAME_H = 384;
 
-export const GAME_VERSION = '0.3.0';
+export const GAME_VERSION = '0.4.0';

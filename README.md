@@ -9,9 +9,20 @@ It runs in the phone's web browser: nothing to download from an app store.
 
 Hold the phone upright (portrait).
 
-> 🚧 **Work in progress.** Right now (milestone 2 of 7) you get the title screen, the menu and the **Ball Lab**:
-> a test court where you fire the ball at the floor, glass, mesh and net and watch how it bounces.
-> The matches arrive in the next milestones.
+> 🚧 **Work in progress** (milestone 3 of 7). Tap **QUICK MATCH**: you and a computer partner (blue, near end)
+> play two computer players (red) to 4 games. **BALL LAB** is the test court for the ball's bounces.
+
+## How to play a quick match
+
+- **Left thumb:** put it anywhere in the bottom-left corner: a joystick appears under it. Move to run.
+- **Right thumb:** **HIT** for a drive or volley, **LOB** for a high ball over the opponents.
+  Press just before the ball reaches you: a small **PERFECT!**, **EARLY** or **LATE** shows your timing.
+  Hold the joystick left or right while hitting to aim; leave it alone and the ball goes cross-court.
+  A high ball near the net becomes a **smash** by itself.
+- **Serving:** tap **HIT** (joystick left/right aims). The serve bounces first and must land in the box diagonally opposite.
+- If you leave the joystick alone, your player drifts towards the ball for you (assisted movement).
+- **Rules:** the ball must bounce once on the other side before touching a wall; after that the glass and mesh are in play.
+  Golden point at 40-40. Pause button at the top right (sound on/off is there too).
 
 ## What's planned
 
@@ -19,7 +30,7 @@ Hold the phone upright (portrait).
 |---|---|---|
 | 1 | Skeleton: title screen, menu, crisp pixels on every phone, published here | ✅ |
 | 2 | Court and ball: walls, glass, mesh, net, ball shadow (try it in Ball Lab) | ✅ |
-| 3 | Single player: controls, shots, rules, scoring, computer opponents, sound | ⏳ |
+| 3 | Single player: controls, shots, rules, scoring, computer opponents, sound | ✅ |
 | 4 | Polish: 3 difficulty levels, smash and bandeja, music, settings, how to play, 2 players on one phone | ⏳ |
 | 5 | Online 1 vs 1 between two phones | ⏳ |
 | 6 | Online 2 vs 2 with 4 phones | ⏳ |
@@ -53,6 +64,7 @@ npm run build   # makes the final files in dist/
 ```
 
 Keyboard on a PC: **Enter** or **Space** to start, **arrow keys** and **Enter** in the menu, **Esc** to go back.
+In a match: **arrow keys** or **WASD** to run, **Space** or **Z** = HIT, **X** = LOB, **P** or **Esc** = pause.
 
 Every push to `main` is tested, built and published to GitHub Pages automatically
 (see `.github/workflows/deploy.yml`).
@@ -61,7 +73,7 @@ Every push to `main` is tested, built and published to GitHub Pages automaticall
 
 | Folder | What's in it |
 |---|---|
-| `src/scenes` | The screens (boot, title, menu, later the match) |
+| `src/scenes` | The screens (boot, title, menu, Ball Lab, match) |
 | `src/game` | Rules, physics, scoring, computer players: plain code with no engine parts, so it can be tested |
 | `src/ui` | Drawing helpers: palette, pixel font, buttons, court art, screen scaling, all game texts (`strings.ts`) |
 | `src/audio` | Sound effects made in code |
