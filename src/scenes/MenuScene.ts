@@ -46,6 +46,14 @@ export class MenuScene extends Phaser.Scene {
     this.buttons.push(makeButton(this, 44, 192, 72, 28, t.back, back, PAL.greyDark));
     this.actions.push(back);
 
+    // Test scene for the ball physics (milestone 2).
+    const lab = () => {
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('BallLab'));
+    };
+    this.buttons.push(makeButton(this, GAME_W - 48, 192, 88, 28, t.menuLab, lab, PAL.orange));
+    this.actions.push(lab);
+
     // Keyboard, for testing on a computer.
     // No highlight until a key is pressed, so phones show plain buttons.
     this.focus = -1;

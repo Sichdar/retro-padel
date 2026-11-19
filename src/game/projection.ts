@@ -5,8 +5,8 @@
 // y = 0..10 m across (0 = far side, top of screen; 10 = near side),
 // z = height above the ground in metres.
 
-export const COURT_LENGTH = 20;
-export const COURT_WIDTH = 10;
+export { COURT_LENGTH, COURT_WIDTH } from "./court";
+import { COURT_LENGTH, COURT_WIDTH } from "./court";
 
 export interface CourtView {
   /** Screen x of the court's centre line. */
@@ -43,6 +43,14 @@ export function pxPerMetre(view: CourtView, yM: number): number {
   const v = yM / COURT_WIDTH;
   const half = view.farHalf + (view.nearHalf - view.farHalf) * v;
   return (half * 2) / COURT_LENGTH;
+}
+
+/** The court spot (on the ground) under a screen point: the reverse of project(). */
+export function unprojectGround(view: CourtView, sx: number, sy: number): { x: number; y: number } {
+  const v = (sy - view.farY) / (view.nearY - view.farY);
+  const half = view.farHalf + (view.nearHalf - view.farHalf) * v;
+  const u = (sx - view.cx - (v - 0.5) * view.skew) / (2 * half) + 0.5;
+  return { x: u * COURT_LENGTH, y: v * COURT_WIDTH };
 }
 
 export function project(view: CourtView, xM: number, yM: number, zM = 0): ScreenPoint {

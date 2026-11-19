@@ -7,6 +7,7 @@ import { pixelText } from '../ui/pixelFont';
 import { t } from '../ui/strings';
 import { ensureGearTexture, toast } from '../ui/widgets';
 import { ensureBackdrop } from './backdrop';
+import { drawNet } from '../ui/courtArt';
 import { goFullscreenOnPhone } from '../ui/screen';
 
 // Title screen: logo, blinking "TAP TO START", a ball bouncing on the court.
@@ -28,7 +29,8 @@ export class TitleScene extends Phaser.Scene {
 
   create(): void {
     this.leaving = false;
-    this.add.image(0, 0, ensureBackdrop(this)).setOrigin(0);
+    this.add.image(0, 0, ensureBackdrop(this, false)).setOrigin(0);
+    drawNet(this.add.graphics().setDepth(10), DEFAULT_VIEW);
 
     this.shadow = this.add.image(0, 0, 'ball-shadow').setAlpha(0.45);
     this.ball = this.add.image(0, 0, 'ball');
@@ -79,6 +81,10 @@ export class TitleScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ENTER', () => this.start());
     this.input.keyboard?.on('keydown-SPACE', () => this.start());
 
+    // Texts and icons above the court, net and ball.
+    for (const obj of this.children.list) {
+      if (obj instanceof Phaser.GameObjects.Container || obj === gear) (obj as Phaser.GameObjects.Container).setDepth(20);
+    }
     this.cameras.main.fadeIn(250, 0, 0, 0);
   }
 
@@ -113,6 +119,9 @@ export class TitleScene extends Phaser.Scene {
     const air = project(DEFAULT_VIEW, this.bx, this.by, this.bz);
     this.shadow.setPosition(Math.round(ground.x), Math.round(ground.y));
     this.ball.setPosition(Math.round(air.x), Math.round(air.y) - 2);
-    this.ball.setDepth(air.y);
+    // In front of the net on the left half, behind it on the right half.
+    const depth = this.bx < COURT_LENGTH / 2 ? 12 : 8;
+    this.ball.setDepth(depth);
+    this.shadow.setDepth(depth - 1);
   }
 }

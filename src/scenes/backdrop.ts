@@ -18,8 +18,10 @@ function seeded(seed: number): () => number {
   };
 }
 
-export function ensureBackdrop(scene: Phaser.Scene): string {
-  if (scene.textures.exists(BACKDROP_KEY)) return BACKDROP_KEY;
+/** The stadium and court; with withNet false, the net is left out so a scene can draw it in front of or behind the ball. */
+export function ensureBackdrop(scene: Phaser.Scene, withNet = true): string {
+  const key = withNet ? BACKDROP_KEY : BACKDROP_KEY + '-nonet';
+  if (scene.textures.exists(key)) return key;
   const g = scene.make.graphics({}, false);
   const rnd = seeded(94);
 
@@ -86,9 +88,9 @@ export function ensureBackdrop(scene: Phaser.Scene): string {
   g.fillStyle(PAL.navy, 1);
   for (let x = 0; x < GAME_W; x += 2) g.fillRect(x, 118 + ((x / 2) % 2), 1, 1);
   drawCourtBack(g, DEFAULT_VIEW);
-  drawNet(g, DEFAULT_VIEW);
+  if (withNet) drawNet(g, DEFAULT_VIEW);
 
-  g.generateTexture(BACKDROP_KEY, GAME_W, GAME_H);
+  g.generateTexture(key, GAME_W, GAME_H);
   g.destroy();
-  return BACKDROP_KEY;
+  return key;
 }

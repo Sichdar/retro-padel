@@ -1,15 +1,20 @@
 import Phaser from 'phaser';
-import { COURT_LENGTH, COURT_WIDTH, CourtView, project } from '../game/projection';
+import { CourtView, project } from '../game/projection';
+import {
+  BACK_WALL_TOP as WALL_TOP,
+  COURT_LENGTH,
+  COURT_WIDTH,
+  GLASS_HEIGHT as WALL_GLASS,
+  NET_X,
+  SERVICE_FROM_NET,
+  SIDE_GLASS_LENGTH as SIDE_GLASS_LEN,
+  SIDE_MESH_TOP,
+  netHeight,
+} from '../game/court';
 import { PAL } from './palette';
 
 // Draws the padel court (floor, lines, glass, mesh, net) in the 3/4 view.
-// Real proportions: 20 x 10 m, service lines 6.95 m from the net,
-// back walls glass 3 m with mesh above, side walls glass for 2 m then mesh.
-
-const SERVICE_FROM_NET = 6.95;
-const WALL_GLASS = 3;
-const WALL_TOP = 4;
-const SIDE_GLASS_LEN = 2;
+// All sizes come from game/court.ts, the same numbers the physics uses.
 
 type G = Phaser.GameObjects.Graphics;
 
@@ -84,9 +89,11 @@ export function drawCourtBack(g: G, view: CourtView): void {
   line(g, view, [sL, W / 2, 0], [sR, W / 2, 0], PAL.lines);
 
   // Far side wall: glass near each end, mesh in between.
-  meshPanel(g, view, [SIDE_GLASS_LEN, 0], [L - SIDE_GLASS_LEN, 0], 0, WALL_GLASS);
-  glassPanel(g, view, [0, 0], [SIDE_GLASS_LEN, 0], WALL_GLASS);
-  glassPanel(g, view, [L - SIDE_GLASS_LEN, 0], [L, 0], WALL_GLASS);
+  meshPanel(g, view, [SIDE_GLASS_LEN, 0], [L - SIDE_GLASS_LEN, 0], 0, SIDE_MESH_TOP);
+  for (const [a, b] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
+    glassPanel(g, view, [a, 0], [b, 0], WALL_GLASS);
+    meshPanel(g, view, [a, 0], [b, 0], WALL_GLASS, WALL_TOP);
+  }
 
   // Back walls (left and right ends): glass with mesh on top.
   for (const x of [0, L]) {
@@ -97,15 +104,34 @@ export function drawCourtBack(g: G, view: CourtView): void {
 
 /** The net across the middle of the court (drawn after things behind it). */
 export function drawNet(g: G, view: CourtView): void {
-  const x = COURT_LENGTH / 2;
+  const x = NET_X;
   const W = COURT_WIDTH;
   const steps = 10;
   for (let i = 0; i < steps; i++) {
     const y0 = (W * i) / steps;
     const y1 = (W * (i + 1)) / steps;
-    const h = (y: number) => 0.88 + 0.04 * Math.abs(y - W / 2) / (W / 2);
+    const h = netHeight;
     quad(g, view, [[x, y0, 0], [x, y1, 0], [x, y1, h(y1)], [x, y0, h(y0)]], PAL.ink, 0.45);
     line(g, view, [x, y0, h(y0)], [x, y1, h(y1)], PAL.white);
   }
-  for (const y of [0, W]) line(g, view, [x, y, 0], [x, y, 0.92], PAL.grey);
+  for (const y of [0, W]) line(g, view, [x, y, 0], [x, y, netHeight(y)], PAL.grey);
+}
+
+/**
+ * The near side wall, in front of everything: only faint outlines, so it
+ * never hides the players or the ball.
+ */
+export function drawNearWall(g: G, view: CourtView): void {
+  const L = COURT_LENGTH;
+  const W = COURT_WIDTH;
+  const a = 0.3;
+  for (const [x0, x1] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
+    line(g, view, [x0, W, WALL_GLASS], [x1, W, WALL_GLASS], PAL.glass, a + 0.2);
+    line(g, view, [x0, W, WALL_TOP], [x1, W, WALL_TOP], PAL.grey, a);
+  }
+  line(g, view, [SIDE_GLASS_LEN, W, SIDE_MESH_TOP], [L - SIDE_GLASS_LEN, W, SIDE_MESH_TOP], PAL.grey, a);
+  for (const x of [0, SIDE_GLASS_LEN, L / 2, L - SIDE_GLASS_LEN, L]) {
+    const top = x === 0 || x === L || x === SIDE_GLASS_LEN || x === L - SIDE_GLASS_LEN ? WALL_TOP : SIDE_MESH_TOP;
+    line(g, view, [x, W, 0], [x, W, top], PAL.grey, a);
+  }
 }

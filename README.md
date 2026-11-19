@@ -9,7 +9,8 @@ It runs in the phone's web browser: nothing to download from an app store.
 
 Hold the phone sideways (landscape).
 
-> 🚧 **Work in progress.** Right now (milestone 1 of 7) you get the title screen and the menu.
+> 🚧 **Work in progress.** Right now (milestone 2 of 7) you get the title screen, the menu and the **Ball Lab**:
+> a test court where you fire the ball at the floor, glass, mesh and net and watch how it bounces.
 > The matches arrive in the next milestones.
 
 ## What's planned
@@ -17,7 +18,7 @@ Hold the phone sideways (landscape).
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Skeleton: title screen, menu, crisp pixels on every phone, published here | ✅ |
-| 2 | Court and ball: walls, glass, mesh, net, ball shadow | ⏳ |
+| 2 | Court and ball: walls, glass, mesh, net, ball shadow (try it in Ball Lab) | ✅ |
 | 3 | Single player: controls, shots, rules, scoring, computer opponents, sound | ⏳ |
 | 4 | Polish: 3 difficulty levels, smash and bandeja, music, settings, how to play, 2 players on one phone | ⏳ |
 | 5 | Online 1 vs 1 between two phones | ⏳ |
