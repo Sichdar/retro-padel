@@ -12,9 +12,12 @@ export const SERVICE_FROM_NET = 6.95;
 export const GLASS_HEIGHT = 3;
 /** Top of the mesh above the back-wall glass. */
 export const BACK_WALL_TOP = 4;
-/** Side walls are glass for this distance from each back wall, then mesh. */
+/** Side walls: full-height glass (3 m) for this distance from each back wall. */
 export const SIDE_GLASS_LENGTH = 2;
-/** Height of the side mesh in the middle part of the court. */
+/** Then a lower glass step (2 m high) up to this distance, as on most real courts. */
+export const SIDE_STEP_LENGTH = 4;
+export const SIDE_STEP_HEIGHT = 2;
+/** Height of the side mesh along the rest of the court (and above the step). */
 export const SIDE_MESH_TOP = 3;
 
 export type Material = 'glass' | 'mesh' | 'open';
@@ -43,5 +46,7 @@ export function wallMaterial(wall: WallId, along: number, z: number): Material {
     if (z < BACK_WALL_TOP) return 'mesh';
     return 'open';
   }
+  const onStep = along < SIDE_STEP_LENGTH || along > COURT_LENGTH - SIDE_STEP_LENGTH;
+  if (onStep && z < SIDE_STEP_HEIGHT) return 'glass';
   return z < SIDE_MESH_TOP ? 'mesh' : 'open';
 }

@@ -9,6 +9,8 @@ import {
   SERVICE_FROM_NET,
   SIDE_GLASS_LENGTH as SIDE_GLASS_LEN,
   SIDE_MESH_TOP,
+  SIDE_STEP_HEIGHT,
+  SIDE_STEP_LENGTH as SIDE_STEP_LEN,
   netHeight,
 } from '../game/court';
 import { PAL } from './palette';
@@ -95,10 +97,15 @@ export function drawCourtBack(g: G, view: CourtView): void {
   glassPanel(g, view, [ends.far, 0], [ends.far, W], WALL_GLASS);
   meshPanel(g, view, [ends.far, 0], [ends.far, W], WALL_GLASS, WALL_TOP);
 
-  // Side walls (left and right): glass near each end, mesh in between.
-  // They lean outwards in this view, so they never cover the court.
+  // Side walls (left and right): tall glass at each end, then a lower glass
+  // step, mesh in between. They lean outwards in this view, so they never
+  // cover the court.
   for (const y of [0, W]) {
-    meshPanel(g, view, [SIDE_GLASS_LEN, y], [L - SIDE_GLASS_LEN, y], 0, SIDE_MESH_TOP);
+    meshPanel(g, view, [SIDE_STEP_LEN, y], [L - SIDE_STEP_LEN, y], 0, SIDE_MESH_TOP);
+    for (const [a, b] of [[SIDE_GLASS_LEN, SIDE_STEP_LEN], [L - SIDE_STEP_LEN, L - SIDE_GLASS_LEN]]) {
+      glassPanel(g, view, [a, y], [b, y], SIDE_STEP_HEIGHT);
+      meshPanel(g, view, [a, y], [b, y], SIDE_STEP_HEIGHT, SIDE_MESH_TOP);
+    }
     for (const [a, b] of [[0, SIDE_GLASS_LEN], [L - SIDE_GLASS_LEN, L]]) {
       glassPanel(g, view, [a, y], [b, y], WALL_GLASS);
       meshPanel(g, view, [a, y], [b, y], WALL_GLASS, WALL_TOP);

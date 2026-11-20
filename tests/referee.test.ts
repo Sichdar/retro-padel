@@ -95,7 +95,8 @@ describe('serve', () => {
 describe('rally', () => {
   it('a shot that bounces and hits the glass is still in play', () => {
     const ref = new Referee();
-    const b = shot(ref, 0, [16, 5, 1], 4, 5, 1.0);
+    // Deep and fast enough to reach the glass after one bounce (air drag included).
+    const b = shot(ref, 0, [16, 5, 1], 2.5, 5, 1.0);
     const rng = makeRng(1);
     let sawGlass = false;
     for (let i = 0; i < 120; i++) {

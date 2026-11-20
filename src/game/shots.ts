@@ -3,7 +3,7 @@
 // No Phaser here.
 
 import { COURT_WIDTH, NET_X, netHeight } from './court';
-import { Ball, BALL_RADIUS, DRAG, GRAVITY, aimBall } from './physics';
+import { Ball, BALL_RADIUS, GRAVITY, aimBall, stepBall } from './physics';
 import { Rng } from './rng';
 import { Team } from './scoring';
 import { Box } from './referee';
@@ -20,6 +20,8 @@ export interface ShotPlan {
   timing: Timing;
   /** Chance (0..1) the shot goes wrong: into the net, long or wide. Defaults by timing. */
   risk?: number;
+  /** Spin (m/s of ball surface, negative = slice). Defaults by shot kind. */
+  spin?: number;
 }
 
 export type ShotError = 'net' | 'long' | 'wide' | null;
@@ -39,15 +41,19 @@ interface ShotShape {
   time?: number;
   /** How far the ball must clear the net (metres). */
   clear: number;
+  /** Spin put on the ball (m/s of surface speed): negative = slice. */
+  spin?: number;
 }
 
+// Speeds and heights checked against real club padel (S05): serve skims the
+// net, lobs peak around 6 m, bandeja and volleys are sliced so they stay low.
 const SHAPES: Record<ShotKind, ShotShape> = {
-  serve: { depth: 5.2, speed: 11, clear: 0.25 },
+  serve: { depth: 5.2, speed: 14, clear: 0.25 },
   drive: { depth: 7.0, speed: 14.5, clear: 0.3 },
-  volley: { depth: 6.0, speed: 13.5, clear: 0.15 },
-  lob: { depth: 8.3, speed: 0, time: 1.75, clear: 1.5 },
+  volley: { depth: 6.0, speed: 13.5, clear: 0.15, spin: -3 },
+  lob: { depth: 8.3, speed: 0, time: 2.15, clear: 1.5 },
   smash: { depth: 6.5, speed: 21, clear: 0.2 },
-  bandeja: { depth: 6.6, speed: 16, clear: 0.3 },
+  bandeja: { depth: 6.6, speed: 16, clear: 0.3, spin: -5 },
 };
 
 /** Where on the far half a shot from `team` lands, before timing errors. */
@@ -106,15 +112,16 @@ export function playShot(b: Ball, plan: ShotPlan, rng: Rng, box?: Box): { x: num
   const drift = plan.timing === 'late' ? 0.6 : plan.timing === 'early' ? -0.6 : 0;
   let tx = target.x + noise() * dir * 0.8;
   let ty = target.y + noise() + drift * Math.sign(target.y - COURT_WIDTH / 2 || 1);
+  // A mistimed lob falls short and lower: a ball the net players can smash.
+  const shortLob = plan.kind === 'lob' && !good;
+  if (shortLob) tx -= dir * (1.5 + rng() * 1.5);
   const speedK = good ? 1 : 0.86;
 
   const dist = Math.hypot(tx - b.x, ty - b.y);
   let time = s.time ?? dist / (s.speed * speedK);
-  if (s.time && !good) time *= 0.9 + rng() * 0.25;
-  // Air drag shortens long shots a little: aim a touch further.
-  const stretch = 1 + DRAG * (dist / time) * time * 0.45;
-  tx = b.x + (tx - b.x) * stretch;
-  ty = b.y + (ty - b.y) * stretch;
+  if (shortLob) time *= 0.78 + rng() * 0.12;
+  else if (s.time && !good) time *= 0.9 + rng() * 0.25;
+  const spin = (plan.spin ?? s.spin ?? 0) * (good ? 1 : 0.6);
 
   // Lift the arc until it clears the net (bad timing leaves less room).
   const clear = good ? s.clear : s.clear * 0.4;
@@ -124,5 +131,39 @@ export function playShot(b: Ball, plan: ShotPlan, rng: Rng, box?: Box): { x: num
     if (n.z >= netHeight(n.y) + clear) break;
     time *= 1.07;
   }
-  return { x: tx, y: ty, error: null };
+  // Air drag and spin bend the flight: fly a practice ball and move the aim
+  // point until the real landing spot matches the target.
+  const wantX = tx;
+  const wantY = ty;
+  let aimX = tx;
+  let aimY = ty;
+  b.spin = spin;
+  for (let i = 0; i < 4; i++) {
+    const land = firstLanding(b);
+    if (!land) break;
+    const ex = wantX - land.x;
+    const ey = wantY - land.y;
+    if (Math.abs(ex) < 0.05 && Math.abs(ey) < 0.05) break;
+    aimX += ex;
+    aimY += ey;
+    aimBall(b, aimX, aimY, BALL_RADIUS, time);
+    b.spin = spin;
+  }
+  return { x: wantX, y: wantY, error: null };
+}
+
+/** Steady stand-in for the random numbers while flying a practice ball. */
+const steady: Rng = () => 0.5;
+
+/** Where a copy of the ball first touches the floor (null if a wall or the net comes first). */
+function firstLanding(ball: Ball): { x: number; y: number } | null {
+  const b: Ball = { ...ball };
+  for (let i = 0; i < 300; i++) {
+    for (const e of stepBall(b, steady)) {
+      if (e.surface === 'floor') return { x: e.x, y: e.y };
+      return null;
+    }
+    if (b.dead || b.out) return null;
+  }
+  return null;
 }

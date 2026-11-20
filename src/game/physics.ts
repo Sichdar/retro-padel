@@ -2,7 +2,9 @@
 // fixed 60 steps per second so it behaves the same on every phone.
 //
 // Surfaces:
-// - floor and glass: clean, predictable bounce
+// - floor: bounce with friction; steep balls sit up, flat ones skid on,
+//   and spin (slice or topspin) changes how fast the ball comes off
+// - glass: clean, predictable bounce
 // - mesh: weak bounce with a little randomness
 // - net: stops the ball, or (touching the top) pops it up: it may roll over or fall back
 // - above a wall's top: the ball leaves the court ('out')
@@ -21,11 +23,24 @@ import { Rng } from './rng';
 export const STEP = 1 / 60;
 export const GRAVITY = 9.81;
 export const BALL_RADIUS = 0.033;
-/** Air drag: slows fast balls more than slow ones. */
-export const DRAG = 0.012;
+/**
+ * Air drag: slows fast balls more than slow ones (per metre of flight).
+ * A real padel ball is about 0.02; a touch less keeps rallies lively.
+ */
+export const DRAG = 0.018;
+/**
+ * Spin pushing the ball up or down in the air (Magnus effect): backspin
+ * floats, topspin dips. Real-ball value for a 6.5 cm, 57 g ball.
+ */
+export const MAGNUS = 0.035;
 
 export const FLOOR_BOUNCE = 0.72; // share of vertical speed kept after a floor bounce
-export const FLOOR_GRIP = 0.88; // share of horizontal speed kept
+/**
+ * Grip of the sand-filled turf. The ball skids while its bottom slides on the
+ * floor; friction slows it until it rolls. Flat, fast balls slide right
+ * through the bounce and keep more speed; steep ones grip and keep about 60%.
+ */
+export const FLOOR_FRICTION = 0.45;
 export const GLASS_BOUNCE = 0.68;
 export const GLASS_GRIP = 0.92;
 const ROLL_BELOW = 0.6; // vertical speed (m/s) under which the ball stops bouncing and rolls
@@ -39,6 +54,11 @@ export interface Ball {
   vx: number;
   vy: number;
   vz: number;
+  /**
+   * Spin, as the speed of the ball's surface (m/s): positive = topspin
+   * (turning the way it travels), negative = backspin (slice).
+   */
+  spin: number;
   /** Rolling on the floor (no more bounces). */
   rolling: boolean;
   /** Has left the court over a wall: no more collisions. */
@@ -60,7 +80,7 @@ export interface BallEvent {
 }
 
 export function makeBall(x: number, y: number, z: number, vx = 0, vy = 0, vz = 0): Ball {
-  return { x, y, z, vx, vy, vz, rolling: false, out: false, dead: false };
+  return { x, y, z, vx, vy, vz, spin: 0, rolling: false, out: false, dead: false };
 }
 
 export function speedOf(b: Ball): number {
@@ -75,6 +95,7 @@ export function aimBall(b: Ball, tx: number, ty: number, tz: number, time: numbe
   b.vx = (tx - b.x) / time;
   b.vy = (ty - b.y) / time;
   b.vz = (tz - b.z + 0.5 * GRAVITY * time * time) / time;
+  b.spin = 0;
   b.rolling = false;
   b.dead = false;
 }
@@ -105,6 +126,29 @@ function firstHit(b: Ball, dt: number, ignoreNet: boolean): Hit | null {
   return best;
 }
 
+/**
+ * Floor bounce with friction. The bottom of the ball slides at
+ * (ground speed - spin); friction works against that slide until the ball
+ * rolls, slowing it and turning it into topspin. For a hollow ball, rolling
+ * starts once friction has taken 1/2.5 of the slide.
+ */
+function bounceOffFloor(b: Ball): void {
+  const vzIn = Math.abs(b.vz);
+  b.vz = vzIn * FLOOR_BOUNCE;
+  const hs = Math.hypot(b.vx, b.vy);
+  if (hs < 1e-6) {
+    b.spin = 0;
+    return;
+  }
+  const slip = hs - b.spin;
+  const most = FLOOR_FRICTION * (1 + FLOOR_BOUNCE) * vzIn;
+  const j = Math.sign(slip) * Math.min(most, Math.abs(slip) / 2.5);
+  const after = Math.max(0, hs - j);
+  b.spin += 1.5 * j;
+  b.vx *= after / hs;
+  b.vy *= after / hs;
+}
+
 function bounceOffWall(b: Ball, wall: WallId, material: Material, rng: Rng): void {
   const glass = material === 'glass';
   const keepNormal = glass ? GLASS_BOUNCE : 0.25 + 0.2 * rng();
@@ -118,6 +162,8 @@ function bounceOffWall(b: Ball, wall: WallId, material: Material, rng: Rng): voi
   }
   b.vz *= glass ? GLASS_GRIP : 0.6 + 0.3 * rng();
   if (!glass) b.vz += (rng() - 0.5) * 1.2;
+  // The wall scrubs off most of the spin.
+  b.spin *= 0.4;
 }
 
 /**
@@ -144,10 +190,17 @@ export function stepBall(b: Ball, rng: Rng, dt = STEP): BallEvent[] {
     }
     b.vx *= slow / hs;
     b.vy *= slow / hs;
+    b.spin = slow;
     b.vz = 0;
     b.z = BALL_RADIUS;
   } else {
     b.vz -= GRAVITY * dt;
+    if (b.spin !== 0 && sp > 1) {
+      // Magnus: topspin pushes down, backspin lifts; grows with speed, levels off with spin.
+      const hs = Math.hypot(b.vx, b.vy);
+      const lift = (MAGNUS * sp * sp * b.spin) / (2 * Math.abs(b.spin) + sp);
+      b.vz -= lift * dt * (hs / sp);
+    }
   }
 
   let remaining = dt;
@@ -176,12 +229,11 @@ export function stepBall(b: Ball, rng: Rng, dt = STEP): BallEvent[] {
     if (hit.kind === 'floor') {
       events.push(ev('floor', null));
       b.z = BALL_RADIUS;
-      b.vz = -b.vz * FLOOR_BOUNCE;
-      b.vx *= FLOOR_GRIP;
-      b.vy *= FLOOR_GRIP;
+      bounceOffFloor(b);
       if (b.vz < ROLL_BELOW) {
         b.vz = 0;
         b.rolling = true;
+        b.spin = Math.hypot(b.vx, b.vy);
       }
       continue;
     }
@@ -198,12 +250,14 @@ export function stepBall(b: Ball, rng: Rng, dt = STEP): BallEvent[] {
         b.vx = -b.vx * 0.08;
         b.vy *= 0.4;
         b.vz = Math.min(b.vz, 0) * 0.3;
+        b.spin = 0;
       } else {
         // Clips the top of the net (net cord): pops up, may go over or fall back.
         events.push(ev('netcord', null));
         b.vz = Math.abs(b.vz) * 0.35 + 0.8 + rng() * 0.8;
         b.vx *= -0.25 + rng() * 0.75;
         b.vy *= 0.5;
+        b.spin = 0;
         b.z = top + BALL_RADIUS;
       }
       continue;

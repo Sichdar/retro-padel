@@ -3,6 +3,7 @@ import { netHeight, wallMaterial } from '../src/game/court';
 import { FixedStep } from '../src/game/fixedStep';
 import { Ball, BallEvent, aimBall, makeBall, stepBall, BALL_RADIUS } from '../src/game/physics';
 import { makeRng } from '../src/game/rng';
+import { ShotKind, playShot } from '../src/game/shots';
 
 /** Run the ball for up to `seconds`, collecting every event. */
 function run(b: Ball, seconds: number, seed = 1, stopAfter?: (e: BallEvent) => boolean): BallEvent[] {
@@ -181,13 +182,108 @@ describe('fixed time step', () => {
 });
 
 describe('aiming', () => {
-  it('lands close to the target without walls in the way', () => {
+  it('plain aiming ignores air drag, so the ball lands a little short', () => {
     const b = makeBall(4, 3, 1);
     aimBall(b, 15, 7, BALL_RADIUS, 1.0);
     const events = run(b, 2, 1, (e) => e.surface === 'floor');
     const land = events.find((e) => e.surface === 'floor')!;
-    expect(land.x).toBeGreaterThan(14);
-    expect(land.x).toBeLessThan(15.3);
-    expect(land.y).toBeCloseTo(7, 0);
+    expect(land.x).toBeGreaterThan(13.2);
+    expect(land.x).toBeLessThan(15);
+    expect(land.y).toBeCloseTo(6.6, 0);
+  });
+
+  it('real shots allow for drag and spin and land where they were aimed', () => {
+    const kinds: [ShotKind, number, number][] = [
+      ['drive', 18, 0.8],
+      ['volley', 12.5, 1.0],
+      ['lob', 12.5, 0.9],
+      ['smash', 13, 2.6],
+      ['bandeja', 14.5, 2.4],
+    ];
+    for (const [kind, x, z] of kinds) {
+      for (const aim of [-0.8, 0, 0.8]) {
+        const b = makeBall(x, 5, z);
+        const want = playShot(b, { kind, team: 0, aim, timing: 'perfect', risk: 0 }, makeRng(3));
+        const land = run(b, 4, 1, (e) => e.surface !== 'netcord').find((e) => e.surface === 'floor')!;
+        expect(Math.hypot(land.x - want.x, land.y - want.y)).toBeLessThan(0.3);
+      }
+    }
+  });
+});
+
+describe('real padel numbers (S05)', () => {
+  const launch = (kind: ShotKind, x: number, z: number) => {
+    const b = makeBall(x, 5, z);
+    playShot(b, { kind, team: 0, aim: 0, timing: 'perfect', risk: 0 }, makeRng(5));
+    return b;
+  };
+
+  it('a lob peaks around 5-7 m', () => {
+    const b = launch('lob', 12.5, 0.9);
+    let top = 0;
+    for (let i = 0; i < 240 && b.vz > -0.1; i++) {
+      stepBall(b, makeRng(1));
+      top = Math.max(top, b.z);
+    }
+    expect(top).toBeGreaterThan(5);
+    expect(top).toBeLessThan(7);
+  });
+
+  it('a serve skims the net (well under a metre above it)', () => {
+    const b = makeBall(18, 7.5, 0.8);
+    playShot(b, { kind: 'serve', team: 0, aim: 0, timing: 'perfect', risk: 0 }, makeRng(5), { x0: 3.05, x1: 10, y0: 0, y1: 5 });
+    let over = Infinity;
+    const rng = makeRng(1);
+    for (let i = 0; i < 120; i++) {
+      const px = b.x;
+      stepBall(b, rng);
+      if (px > 10 && b.x <= 10) over = b.z - netHeight(b.y);
+    }
+    expect(over).toBeGreaterThan(0.1);
+    expect(over).toBeLessThan(0.9);
+  });
+
+  it('a flat ball skids on after the bounce; a steep one keeps less of its speed', () => {
+    const keep = (vx: number, vz: number) => {
+      const b = makeBall(5, 5, 0.2, vx, 0, vz);
+      run(b, 1, 1, (e) => e.surface === 'floor');
+      return b.vx / vx;
+    };
+    const flat = keep(20, -3);
+    const steep = keep(8, -9);
+    expect(flat).toBeGreaterThan(steep);
+    expect(steep).toBeCloseTo(0.6, 1); // grips and rolls: a hollow ball keeps 3/5
+    expect(flat).toBeLessThan(0.9);
+  });
+
+  it('backspin floats in the air, topspin dips', () => {
+    const landing = (spin: number) => {
+      const b = makeBall(4, 5, 1, 15, 0, 3);
+      b.spin = spin;
+      return run(b, 2, 1, (e) => e.surface === 'floor').find((e) => e.surface === 'floor')!.x;
+    };
+    expect(landing(-5)).toBeGreaterThan(landing(0));
+    expect(landing(0)).toBeGreaterThan(landing(5));
+  });
+
+  it('a sliced bandeja stays near the back glass instead of popping out', () => {
+    const after = (slice: boolean) => {
+      const b = makeBall(14.5, 5, 2.4);
+      const plan = { kind: 'bandeja' as const, team: 0 as const, aim: 0, timing: 'perfect' as const, risk: 0 };
+      playShot(b, slice ? plan : { ...plan, spin: 0 }, makeRng(5));
+      const evs = run(b, 4, 1);
+      const glass = evs.findIndex((e) => e.surface === 'glass');
+      return evs.slice(glass + 1).find((e) => e.surface === 'floor')!.x;
+    };
+    expect(after(true)).toBeLessThan(3);
+    expect(after(true)).toBeLessThan(after(false));
+  });
+
+  it('side walls have a lower glass step from 2 to 4 m', () => {
+    expect(wallMaterial('side-far', 3, 1.5)).toBe('glass');
+    expect(wallMaterial('side-near', 17, 1.5)).toBe('glass');
+    expect(wallMaterial('side-far', 3, 2.5)).toBe('mesh');
+    expect(wallMaterial('side-far', 3, 3.2)).toBe('open');
+    expect(wallMaterial('side-far', 5, 1.5)).toBe('mesh');
   });
 });
