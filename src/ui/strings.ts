@@ -91,8 +91,81 @@ export const en = {
   faultWall: 'WALL FIRST',
   faultMesh: 'HIT THE MESH',
   faultOut: 'OUT',
+  reasonBody: 'HIT A PLAYER',
+  bandeja: 'BANDEJA!',
+  oneSet: 'ONE SET TO 6 GAMES',
+  bestOf3: 'BEST OF 3 SETS',
+
+  // Couch mode (2 players on one phone)
+  couchTitle: 'COUCH 2P',
+  couchFlat: 'PHONE FLAT ON THE TABLE',
+  couchYouBottom: 'P1: YOU PLAY BLUE',
+  couchYouTop: 'P2: YOU PLAY RED',
+  couchLob: 'TAP HIT TWICE = LOB',
+  couchTap: 'TAP TO START',
+  p1: 'P1',
+  p2: 'P2',
+  p1Point: 'P1 POINT!',
+  p2Point: 'P2 POINT!',
+  p1Wins: 'P1 WINS!',
+  p2Wins: 'P2 WINS!',
+
+  // Settings
+  menuSettings: 'SETTINGS',
+  setEffects: 'SOUND FX',
+  setMusic: 'MUSIC',
+  setVibration: 'VIBRATION',
+  setButtons: 'BUTTONS',
+  setAssist: 'ASSIST MOVE',
+  setLevel: 'CPU LEVEL',
+  setGolden: 'GOLDEN PT',
+  setLength: 'MATCH',
+  setName: 'NAME',
+  setLook: 'PLAYER',
+  setKit: 'KIT',
+  on: 'ON',
+  off: 'OFF',
+  right: 'RIGHT',
+  left: 'LEFT',
+  easy: 'EASY',
+  normal: 'NORMAL',
+  hard: 'HARD',
+  lenShort: '4 GAMES',
+  lenSet: '1 SET',
+  lenBest3: '3 SETS',
+  namePrompt: 'Your name for the scoreboard (letters and numbers, up to 8):',
+  settingsHint: 'TAP A ROW TO CHANGE IT',
+
+  // How to play: one page per panel, short lines (the screen fits about 25 letters)
+  howTitle: 'HOW TO PLAY',
+  next: 'NEXT',
+  done: 'DONE',
+  howPages: [
+    {
+      title: 'CONTROLS',
+      lines: ['LEFT THUMB: STICK = MOVE', 'RIGHT THUMB: HIT OR LOB', 'PRESS HIT AS THE BALL', 'REACHES YOU = PERFECT!', 'STICK LEFT/RIGHT AIMS', 'HIGH BALL: SMASH/BANDEJA'],
+    },
+    {
+      title: 'THE SERVE',
+      lines: ['BOUNCE IT, HIT IT LOW,', 'DIAGONALLY INTO THE', 'OTHER SERVICE BOX.', 'TWO TRIES PER POINT.', 'NET, THEN IN: AGAIN', 'IN, THEN MESH: FAULT'],
+    },
+    {
+      title: 'THE WALLS',
+      lines: ['YOUR SHOT MUST BOUNCE', 'ON THE FLOOR FIRST.', 'THEN IT MAY HIT THE', 'GLASS AND STAY IN PLAY:', 'WAIT FOR IT TO COME', 'BACK OFF THE WALL!'],
+    },
+    {
+      title: 'LOSING A POINT',
+      lines: ['TWO BOUNCES ON YOUR SIDE', 'YOUR SHOT IN THE NET', 'IT HITS THEIR WALL', 'BEFORE IT BOUNCES', 'THE BALL TOUCHES YOU', 'MESH: WEAK, WILD BOUNCE'],
+    },
+    {
+      title: 'SCORING',
+      lines: ['15 - 30 - 40 - GAME', 'AT 40-40, GOLDEN POINT:', 'THE NEXT POINT WINS', '(OR DEUCE: SETTINGS)', 'QUICK MATCH: 4 GAMES', 'TIE-BREAK: FIRST TO 7'],
+    },
+  ],
 };
 
 export type Strings = typeof en;
+
+export type HowPage = (typeof en.howPages)[number];
 
 export const t: Strings = en;

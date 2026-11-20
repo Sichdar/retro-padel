@@ -4,9 +4,10 @@ import { PAL } from '../ui/palette';
 import { pixelText } from '../ui/pixelFont';
 import { t } from '../ui/strings';
 import { makeButton, toast } from '../ui/widgets';
+import { playMusic } from '../audio/music';
 import { BACKDROP_KEY, ensureBackdrop } from './backdrop';
 
-// Main menu. QUICK MATCH plays against the computer; the other modes come later.
+// Main menu. ONLINE comes in milestones 5 and 6.
 export class MenuScene extends Phaser.Scene {
   private buttons: Phaser.GameObjects.Container[] = [];
   private actions: (() => void)[] = [];
@@ -21,7 +22,8 @@ export class MenuScene extends Phaser.Scene {
     this.add.image(0, 0, BACKDROP_KEY).setOrigin(0);
     this.add.rectangle(0, 0, this.scale.width, this.scale.height, PAL.black, 0.55).setOrigin(0);
 
-    pixelText(this, GAME_W / 2, 60, t.menuTitle, { colour: PAL.yellow, outline: PAL.redDark, shadow: PAL.ink, scale: 2 });
+    playMusic('menu');
+    pixelText(this, GAME_W / 2, 52, t.menuTitle, { colour: PAL.yellow, outline: PAL.redDark, shadow: PAL.ink, scale: 2 });
 
     const soon = () => toast(this, t.comingSoon);
     const items: [string, number][] = [
@@ -29,17 +31,19 @@ export class MenuScene extends Phaser.Scene {
       [t.menuCouch, PAL.purple],
       [t.menuOnline, PAL.red],
       [t.menuHowTo, PAL.turfDark],
+      [t.menuSettings, PAL.navy],
     ];
     this.buttons = [];
     this.actions = [];
     // One column of big buttons, easy to reach with a thumb.
-    const quick = () => {
+    const go = (scene: string, data?: object) => () => {
       this.cameras.main.fadeOut(200, 0, 0, 0);
-      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Match'));
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start(scene, data));
     };
+    const actions = [go('Match', { mode: 'quick' }), go('Match', { mode: 'couch' }), soon, go('HowTo'), go('Settings')];
     items.forEach(([label, colour], i) => {
-      const action = i === 0 ? quick : soon;
-      this.buttons.push(makeButton(this, GAME_W / 2, 120 + i * 54, 172, 42, label, action, colour));
+      const action = actions[i];
+      this.buttons.push(makeButton(this, GAME_W / 2, 100 + i * 48, 172, 38, label, action, colour));
       this.actions.push(action);
     });
 

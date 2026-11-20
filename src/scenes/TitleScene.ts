@@ -5,10 +5,11 @@ import { sfxStart, unlockAudio, vibrate } from '../audio/sfx';
 import { PAL } from '../ui/palette';
 import { pixelText } from '../ui/pixelFont';
 import { t } from '../ui/strings';
-import { ensureGearTexture, toast } from '../ui/widgets';
+import { ensureGearTexture } from '../ui/widgets';
 import { ensureBackdrop } from './backdrop';
 import { drawNet } from '../ui/courtArt';
 import { goFullscreenOnPhone } from '../ui/screen';
+import { playMusic } from '../audio/music';
 
 // Title screen: logo, blinking "TAP TO START", a ball bouncing on the court.
 export class TitleScene extends Phaser.Scene {
@@ -62,13 +63,19 @@ export class TitleScene extends Phaser.Scene {
 
     pixelText(this, GAME_W / 2, GAME_H - 8, t.copyright + GAME_VERSION, { colour: PAL.grey, outline: PAL.ink });
 
-    // Settings icon (the settings screen arrives in milestone 4).
+    // Music starts with the first tap (phones don't allow sound before).
+    playMusic('menu');
+
+    // Settings icon.
     const gear = this.add.image(GAME_W - 14, 14, ensureGearTexture(this)).setInteractive({ useHandCursor: true });
     gear.input!.hitArea.setTo(-8, -8, 32, 32);
     gear.on('pointerup', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) => {
       e.stopPropagation();
       unlockAudio();
-      toast(this, t.comingSoon);
+      goFullscreenOnPhone();
+      this.leaving = true;
+      this.cameras.main.fadeOut(200, 0, 0, 0);
+      this.cameras.main.once('camerafadeoutcomplete', () => this.scene.start('Settings', { back: 'Title' }));
     });
     gear.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, e: Phaser.Types.Input.EventData) =>
       e.stopPropagation(),

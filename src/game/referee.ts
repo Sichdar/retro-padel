@@ -18,6 +18,7 @@ export type PointReason =
   | 'net' // the shot didn't cross the net
   | 'wall' // the shot hit the other side's wall or mesh before bouncing
   | 'out' // the shot left the court without bouncing
+  | 'body' // the ball touched a player of the other team
   | 'double-fault';
 
 export type RallyCall =

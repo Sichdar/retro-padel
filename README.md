@@ -9,8 +9,10 @@ It runs in the phone's web browser: nothing to download from an app store.
 
 Hold the phone upright (portrait).
 
-> 🚧 **Work in progress** (milestone 3 of 7). Tap **QUICK MATCH**: you and a computer partner (blue, near end)
-> play two computer players (red) to 4 games. **BALL LAB** is the test court for the ball's bounces.
+> 🚧 **Work in progress** (milestone 4 of 7). **QUICK MATCH**: you and a computer partner (near end)
+> against two computer players (red). **COUCH 2P**: two people on one phone. **HOW TO PLAY** explains the walls
+> and the scoring; **SETTINGS** (also the gear on the title screen) has the level, match length, your name and look.
+> **BALL LAB** is the test court for the ball's bounces.
 
 ## How to play a quick match
 
@@ -18,11 +20,21 @@ Hold the phone upright (portrait).
 - **Right thumb:** **HIT** for a drive or volley, **LOB** for a high ball over the opponents.
   Press just before the ball reaches you: a small **PERFECT!**, **EARLY** or **LATE** shows your timing.
   Hold the joystick left or right while hitting to aim; leave it alone and the ball goes cross-court.
-  A high ball near the net becomes a **smash** by itself.
+  A high ball becomes a **smash** near the net, or a **bandeja** (a safer overhead) further back, by itself.
 - **Serving:** tap **HIT** (joystick left/right aims). The serve bounces first and must land in the box diagonally opposite.
 - If you leave the joystick alone, your player drifts towards the ball for you (assisted movement).
 - **Rules:** the ball must bounce once on the other side before touching a wall; after that the glass and mesh are in play.
-  Golden point at 40-40. Pause button at the top right (sound on/off is there too).
+  If the ball touches a player, that player's team loses the point.
+  Golden point at 40-40 (or deuce: settings). Pause button at the top right (sound and music on/off are there too).
+- **Settings:** computer level (Easy, Normal, Hard), match length (4 games, 1 set, best of 3 sets), golden point,
+  assisted movement, buttons on the left for left-handers, sound, music, vibration, your name and 4 player designs
+  with 4 kit colours. Everything is saved on your phone.
+
+## Couch mode: two people, one phone
+
+Lay the phone flat on a table between you. P1 plays blue from the bottom edge, P2 plays red from the top edge
+(P2's controls and scoreboard are turned round). Each has a joystick and one **HIT** button; tap **HIT** twice
+quickly for a lob. The partners are computer players. The pause button is on the left edge, halfway up.
 
 ## What's planned
 
@@ -31,7 +43,7 @@ Hold the phone upright (portrait).
 | 1 | Skeleton: title screen, menu, crisp pixels on every phone, published here | ✅ |
 | 2 | Court and ball: walls, glass, mesh, net, ball shadow (try it in Ball Lab) | ✅ |
 | 3 | Single player: controls, shots, rules, scoring, computer opponents, sound | ✅ |
-| 4 | Polish: 3 difficulty levels, smash and bandeja, music, settings, how to play, 2 players on one phone | ⏳ |
+| 4 | Polish: 3 difficulty levels, smash and bandeja, music, settings, how to play, 2 players on one phone | ✅ |
 | 5 | Online 1 vs 1 between two phones | ⏳ |
 | 6 | Online 2 vs 2 with 4 phones | ⏳ |
 | 7 | Install on the home screen, play offline | ⏳ |

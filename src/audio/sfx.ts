@@ -3,10 +3,25 @@
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
-export const audioSettings = { effects: true, music: true };
+/** Kept in step with the saved settings by main.ts. */
+export const audioSettings = { effects: true, music: true, vibration: true };
+
+const unlockListeners: (() => void)[] = [];
+
+/** Run `fn` once sound is allowed (straight away if it already is). */
+export function whenAudioReady(fn: () => void): void {
+  unlockListeners.push(fn);
+  if (ctx) fn();
+}
+
+/** The shared sound output, or null before the first tap. */
+export function getAudio(): { ctx: AudioContext; master: GainNode } | null {
+  return ctx && master ? { ctx, master } : null;
+}
 
 export function unlockAudio(): void {
   try {
+    const first = !ctx;
     if (!ctx) {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AC) return;
@@ -16,6 +31,7 @@ export function unlockAudio(): void {
       master.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') void ctx.resume();
+    if (first) for (const fn of unlockListeners) fn();
   } catch {
     ctx = null;
   }
@@ -129,6 +145,7 @@ export function sfxHit(): void {
 
 /** Short buzz on phones that support it (Android). */
 export function vibrate(ms = 15): void {
+  if (!audioSettings.vibration) return;
   try {
     navigator.vibrate?.(ms);
   } catch {

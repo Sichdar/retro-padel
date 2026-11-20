@@ -76,16 +76,30 @@ export interface TeamStats {
 
 export interface MatchOptions {
   rules?: MatchRules;
+  /** Level of every computer player, unless `levels` says otherwise. */
   difficulty?: Difficulty;
+  /** Level of the computer players on each team (near team 0, far team 1). */
+  levels?: [Difficulty, Difficulty];
   seed?: number;
   /** The computer plays player 0 too (tests and demos). */
   allCpu?: boolean;
-  /** Player 0 drifts towards the ball when the joystick is left alone. */
+  /** Players run by people (default [0]). Couch mode uses [0, 2]: one per team. */
+  humans?: number[];
+  /** Human players drift towards the ball when their joystick is left alone. */
   assist?: boolean;
 }
 
 /** The player you control. */
 export const HUMAN = 0;
+/** The second person in couch mode: far team, right side. */
+export const HUMAN_2 = 2;
+
+/** One input per human, by player id; a single input goes to the first human. */
+export type MatchInput = HumanInput | (HumanInput | undefined)[];
+
+/** Ball touching a player's body: how close (metres along the ground) and how high. */
+const BODY_RADIUS = 0.3;
+const BODY_TOP = 1.75;
 
 /** Swing timing window for the player you control (seconds after pressing). */
 const SWING_FROM = 0.05;
@@ -104,7 +118,11 @@ export class Match {
   readonly score: Score;
   readonly ref = new Referee();
   readonly difficulty: Difficulty;
+  /** Level of the computer players on each team. */
+  readonly levels: [Difficulty, Difficulty];
   readonly allCpu: boolean;
+  /** Ids of the players run by people. */
+  readonly humans: number[];
   assist: boolean;
   phase: Phase = 'serve-wait';
   phaseTime = 0;
@@ -128,8 +146,9 @@ export class Match {
   private willMiss = [false, false, false, false];
   private missed = [false, false, false, false];
   private timing: Timing[] = ['perfect', 'perfect', 'perfect', 'perfect'];
-  private swingKind: 'hit' | 'lob' = 'hit';
-  private swingUsed = true;
+  private swingKind: ('hit' | 'lob')[] = ['hit', 'hit', 'hit', 'hit'];
+  private swingUsed = [true, true, true, true];
+  private aimInput = [0, 0, 0, 0];
   private serveAim = 0;
   private tossBounced = false;
   private winner: Team | null = null;
@@ -137,10 +156,23 @@ export class Match {
   constructor(opts: MatchOptions = {}) {
     this.rng = makeRng(opts.seed ?? Date.now());
     this.difficulty = opts.difficulty ?? DIFFICULTY.normal;
+    this.levels = opts.levels ?? [this.difficulty, this.difficulty];
     this.allCpu = opts.allCpu ?? false;
+    this.humans = this.allCpu ? [] : (opts.humans ?? [HUMAN]);
     this.assist = opts.assist ?? true;
     this.score = new Score(opts.rules ?? QUICK_MATCH, 0);
-    this.players = [0, 1, 2, 3].map((id) => makePlayer(id, id === HUMAN && !this.allCpu));
+    this.players = [0, 1, 2, 3].map((id) => makePlayer(id, this.humans.includes(id)));
+  }
+
+  /** The input for one human player this step. */
+  private inputFor(input: MatchInput, id: number): HumanInput {
+    if (Array.isArray(input)) return input[id] ?? NO_INPUT;
+    return id === this.humans[0] ? input : NO_INPUT;
+  }
+
+  /** Which player of a team is going for the ball (null when nobody is). */
+  chosenOf(team: Team): number | null {
+    return this.chosen[team];
   }
 
   /** Call once before the first step: places everyone for the first serve. */
@@ -171,10 +203,10 @@ export class Match {
   }
 
   private speedOf(p: Player): number {
-    return p.human ? HUMAN_SPEED : this.difficulty.speed;
+    return p.human ? HUMAN_SPEED : this.levels[p.team].speed;
   }
 
-  step(input: HumanInput = NO_INPUT, dt = STEP): MatchEvent[] {
+  step(input: MatchInput = NO_INPUT, dt = STEP): MatchEvent[] {
     const ev: MatchEvent[] = [];
     this.time += dt;
     this.phaseTime += dt;
@@ -182,13 +214,16 @@ export class Match {
       if (p.swing >= 0) p.swing = p.swing + dt > 0.45 ? -1 : p.swing + dt;
       p.cheer = Math.max(0, p.cheer - dt);
     }
-    const human = this.players[HUMAN];
-    if (human.human && (input.hit || input.lob) && this.phase === 'rally') {
-      human.swing = 0;
-      human.pose = 'forehand';
-      this.swingKind = input.lob ? 'lob' : 'hit';
-      this.swingUsed = false;
-      ev.push({ type: 'swing', player: HUMAN });
+    for (const id of this.humans) {
+      const h = this.players[id];
+      const inp = this.inputFor(input, id);
+      if ((inp.hit || inp.lob) && this.phase === 'rally') {
+        h.swing = 0;
+        h.pose = 'forehand';
+        this.swingKind[id] = inp.lob ? 'lob' : 'hit';
+        this.swingUsed[id] = false;
+        ev.push({ type: 'swing', player: id });
+      }
     }
 
     switch (this.phase) {
@@ -250,17 +285,21 @@ export class Match {
     this.ball = makeBall(p.x - (p.team === 0 ? 0.2 : -0.2), p.y + hand, 1.0);
   }
 
-  private stepServeWait(input: HumanInput, ev: MatchEvent[], dt: number): void {
+  private stepServeWait(input: MatchInput, ev: MatchEvent[], dt: number): void {
     const server = this.server;
-    // The receiving human may shuffle about while waiting; everyone else stands.
-    const human = this.players[HUMAN];
-    if (human.human && human !== server) this.moveHuman(human, input, dt, false);
+    // Humans not serving may shuffle about while waiting; everyone else stands.
+    for (const id of this.humans) {
+      if (id !== server.id) this.moveHuman(this.players[id], this.inputFor(input, id), dt, false);
+    }
     this.holdBall();
-    const go = server.human ? input.hit || input.lob : this.phaseTime >= SERVE_WAIT_CPU;
+    const sIn = this.inputFor(input, server.id);
+    const go = server.human ? sIn.hit || sIn.lob : this.phaseTime >= SERVE_WAIT_CPU;
     if (!go) return;
+    // A human's joystick is in their own view: the far team sees the court turned round.
+    const own = server.team === 0 ? sIn.mx : -sIn.mx;
     this.serveAim = server.human
-      ? Math.abs(input.mx) > 0.2
-        ? Math.sign(input.mx) * Math.min(1, Math.abs(input.mx))
+      ? Math.abs(own) > 0.2
+        ? Math.sign(own) * Math.min(1, Math.abs(own))
         : 0
       : (this.rng() * 2 - 1) * 0.8;
     // Underhand serve: drop the ball, let it bounce, hit it on the way up.
@@ -278,7 +317,7 @@ export class Match {
     }
     if (!this.tossBounced || this.ball.vz > 0.4) return;
     const server = this.server;
-    const timing: Timing = server.human ? 'perfect' : rollTiming(this.difficulty, this.rng);
+    const timing: Timing = server.human ? 'perfect' : rollTiming(this.levels[server.team], this.rng);
     this.ref.startServe(server.team, this.box);
     playShot(this.ball, { kind: 'serve', team: server.team, aim: this.serveAim, timing }, this.rng, this.box);
     server.swing = 0;
@@ -290,7 +329,7 @@ export class Match {
 
   // ---- Rally ---------------------------------------------------------------
 
-  private stepRally(input: HumanInput, ev: MatchEvent[], dt: number): void {
+  private stepRally(input: MatchInput, ev: MatchEvent[], dt: number): void {
     const evs = stepBall(this.ball, this.rng, dt);
     for (const e of evs) ev.push({ type: 'ball', e });
     if (evs.length) this.pathDirty = true;
@@ -310,24 +349,52 @@ export class Match {
 
     // Movement.
     for (const p of this.players) {
-      if (p.human) this.moveHuman(p, input, dt, true);
+      if (p.human) this.moveHuman(p, this.inputFor(input, p.id), dt, true);
       else this.moveCpu(p, dt);
     }
 
-    // Hits: the human first, then the computer players.
-    const human = this.players[HUMAN];
-    if (human.human) this.tryHumanHit(human, ev);
+    // Hits: the humans first, then the computer players.
+    for (const id of this.humans) {
+      if (this.phase === 'rally') this.tryHumanHit(this.players[id], ev);
+    }
     if (this.phase !== 'rally') return;
+    let hitNow = false;
     for (const p of this.players) {
       if (!this.isCpu(p)) continue;
-      if (this.tryCpuHit(p, ev)) break;
+      if (this.tryCpuHit(p, ev)) {
+        hitNow = true;
+        break;
+      }
+    }
+    if (!hitNow && this.phase === 'rally') this.checkBody(ev);
+  }
+
+  /**
+   * The ball touching a player loses the point for that player's team. Only
+   * for shots from the other team (a ball from your own partner is left out
+   * in this version) and not on the serve.
+   */
+  private checkBody(ev: MatchEvent[]): void {
+    const b = this.ball;
+    if (b.dead || b.out || this.ref.shots < 2 || b.z < 0.15 || b.z > BODY_TOP) return;
+    for (const p of this.players) {
+      if (p.team === this.ref.hitter || halfOf(b.x) !== p.team) continue;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > BODY_RADIUS) continue;
+      // The ball drops dead at the player's feet.
+      b.vx *= -0.15;
+      b.vy *= -0.15;
+      b.vz = Math.min(b.vz, 0);
+      this.awardPoint(this.ref.hitter, 'body', true, ev);
+      return;
     }
   }
 
   private moveHuman(p: Player, input: HumanInput, dt: number, inRally: boolean): void {
     if (input.active) {
       // Screen down is court +x (towards your end), screen right is court +y.
-      movePlayer(p, input.my, input.mx, HUMAN_SPEED, dt);
+      // The far team holds the phone the other way round, so their stick is turned too.
+      const f = p.team === 0 ? 1 : -1;
+      movePlayer(p, input.my * f, input.mx * f, HUMAN_SPEED, dt);
       return;
     }
     if (!this.assist || !inRally) {
@@ -410,13 +477,13 @@ export class Match {
   }
 
   private tryHumanHit(p: Player, ev: MatchEvent[]): void {
-    if (this.swingUsed || p.swing < SWING_FROM || p.swing > SWING_TO) return;
+    if (this.swingUsed[p.id] || p.swing < SWING_FROM || p.swing > SWING_TO) return;
     const b = this.ball;
     if (!inReach(p, b) || !this.ref.canHit(p.team, b.x)) return;
     const along = alongPath(p, b);
     const timing: Timing = along < -PERFECT_BAND ? 'early' : along > PERFECT_BAND ? 'late' : 'perfect';
     let kind: ShotKind;
-    if (this.swingKind === 'lob') kind = 'lob';
+    if (this.swingKind[p.id] === 'lob') kind = 'lob';
     else if (b.z >= OVERHEAD_Z) kind = fromNet(p.x) < 4.5 ? 'smash' : 'bandeja';
     else if (this.ref.bouncesOver === 0 && fromNet(p.x) < 5) kind = 'volley';
     else kind = 'drive';
@@ -425,14 +492,15 @@ export class Match {
     this.hit(p, kind, aim, timing, ev);
   }
 
-  /** Last joystick position, kept by the scene through setAim(). */
-  private aimInput = 0;
-  setAim(mx: number): void {
-    this.aimInput = mx;
+  /** Last joystick position across (in the player's own view), kept by the scene. */
+  setAim(mx: number, id = this.humans[0] ?? HUMAN): void {
+    this.aimInput[id] = mx;
   }
 
+  /** Shot aim on the screen's left-right (-1..1); the far team's stick is turned round. */
   private humanAim(p: Player): number {
-    if (Math.abs(this.aimInput) > 0.25) return Math.max(-1, Math.min(1, this.aimInput));
+    const a = p.team === 0 ? this.aimInput[p.id] : -this.aimInput[p.id];
+    if (Math.abs(a) > 0.25) return Math.max(-1, Math.min(1, a));
     return p.y > 5 ? -0.55 : 0.55;
   }
 
@@ -444,9 +512,11 @@ export class Match {
     const nx = b.x + b.vx * STEP * 2;
     const ny = b.y + b.vy * STEP * 2;
     const leaving = Math.hypot(nx - p.x, ny - p.y) > REACH || b.z + b.vz * STEP * 2 < 0.1;
-    if (!chosen && !leaving) return false;
+    // A ball flying at the body gets hit (a reflex volley) rather than touching the player.
+    const close = Math.hypot(b.x - p.x, b.y - p.y) < BODY_RADIUS + 0.15;
+    if (!chosen && !leaving && !close) return false;
     const along = alongPath(p, b);
-    if (along < -0.35 && !leaving && speedOf(b) > 2) return false;
+    if (along < -0.35 && !leaving && !close && speedOf(b) > 2) return false;
     if (this.willMiss[p.id]) {
       this.missed[p.id] = true;
       p.swing = 0;
@@ -455,7 +525,7 @@ export class Match {
       return false;
     }
     const opponents = this.players.filter((o) => o.team !== p.team);
-    const shot = chooseShot(p, b, opponents, this.rng, this.ref.bouncesOver > 0);
+    const shot = chooseShot(p, b, opponents, this.rng, this.ref.bouncesOver > 0, this.levels[p.team]);
     this.hit(p, shot.kind, shot.aim, this.timing[p.id], ev);
     return true;
   }
@@ -464,10 +534,10 @@ export class Match {
     const b = this.ball;
     p.pose = b.z >= OVERHEAD_Z ? 'overhead' : onForehand(p, b) ? 'forehand' : 'backhand';
     p.swing = Math.max(p.swing, 0.12);
-    if (p.human) this.swingUsed = true;
+    if (p.human) this.swingUsed[p.id] = true;
     this.ref.onHit(p.team);
     // You make fewer unforced errors than the computer, so beginners keep rallies going.
-    const risk = p.human ? (timing === 'perfect' ? 0 : 0.12) : undefined;
+    const risk = p.human ? (timing === 'perfect' ? 0 : this.levels[1 - p.team].humanRisk) : undefined;
     playShot(b, { kind, team: p.team, aim, timing, risk }, this.rng);
     this.afterHit(p, kind, timing, ev);
   }
@@ -478,12 +548,13 @@ export class Match {
     ev.push({ type: 'hit', player: p.id, kind, timing, speed: speedOf(this.ball) });
     if (kind === 'smash') this.stats[team].smashes++;
     this.pathDirty = true;
-    this.reactAt[other] = this.time + this.difficulty.reaction;
+    const lv = this.levels[other];
+    this.reactAt[other] = this.time + lv.reaction;
     for (const q of this.players) {
       if (q.team !== other) continue;
       this.missed[q.id] = false;
-      this.willMiss[q.id] = !q.human && kind !== 'serve' && this.rng() < this.difficulty.miss;
-      this.timing[q.id] = rollTiming(this.difficulty, this.rng);
+      this.willMiss[q.id] = !q.human && kind !== 'serve' && this.rng() < lv.miss;
+      this.timing[q.id] = rollTiming(lv, this.rng);
     }
     // Team positions: go to the net after a lob or when already close to it;
     // a lob from the other side sends them back.

@@ -18,12 +18,20 @@ export interface Difficulty {
   perfect: number;
   /** Chance of swinging and missing completely. */
   miss: number;
+  /** How far the aim wanders from the open gap (0 = spot on, 1 = anywhere). */
+  aimNoise: number;
+  /** Chance of a lob when both opponents are at the net. */
+  lobAtNet: number;
+  /** Chance of a smash (rather than a safer bandeja) on a high ball near the net. */
+  smash: number;
+  /** Chance a human's badly timed shot goes wrong at this level. */
+  humanRisk: number;
 }
 
 export const DIFFICULTY: Record<'easy' | 'normal' | 'hard', Difficulty> = {
-  easy: { speed: 3.9, reaction: 0.3, perfect: 0.4, miss: 0.08 },
-  normal: { speed: 4.4, reaction: 0.18, perfect: 0.6, miss: 0.035 },
-  hard: { speed: 4.9, reaction: 0.1, perfect: 0.8, miss: 0.01 },
+  easy: { speed: 3.8, reaction: 0.32, perfect: 0.4, miss: 0.09, aimNoise: 0.9, lobAtNet: 0.15, smash: 0.3, humanRisk: 0.07 },
+  normal: { speed: 4.4, reaction: 0.18, perfect: 0.6, miss: 0.035, aimNoise: 0.5, lobAtNet: 0.35, smash: 0.55, humanRisk: 0.12 },
+  hard: { speed: 5.0, reaction: 0.09, perfect: 0.82, miss: 0.008, aimNoise: 0.25, lobAtNet: 0.55, smash: 0.75, humanRisk: 0.16 },
 };
 
 export interface PathPoint {
@@ -102,7 +110,14 @@ export interface ShotChoice {
 }
 
 /** Pick a shot for a computer player about to hit the ball. */
-export function chooseShot(p: Player, ball: Ball, opponents: Player[], rng: Rng, bounced: boolean): ShotChoice {
+export function chooseShot(
+  p: Player,
+  ball: Ball,
+  opponents: Player[],
+  rng: Rng,
+  bounced: boolean,
+  d: Difficulty = DIFFICULTY.normal,
+): ShotChoice {
   const netDist = fromNet(p.x);
   // Aim at the bigger gap between the opponents and the side walls.
   const oy = opponents.map((o) => o.y).sort((a, b) => a - b);
@@ -111,14 +126,14 @@ export function chooseShot(p: Player, ball: Ball, opponents: Player[], rng: Rng,
     { aim: 0, size: (oy[1] ?? oy[0]) - oy[0] },
     { aim: 0.75, size: 10 - (oy[1] ?? oy[0]) },
   ].sort((a, b) => b.size - a.size);
-  let aim = gaps[0].aim + (rng() - 0.5) * 0.5;
+  let aim = gaps[0].aim + (rng() - 0.5) * d.aimNoise;
   aim = Math.max(-1, Math.min(1, aim));
 
   if (ball.z >= OVERHEAD_Z) {
-    return { kind: netDist < 4.5 && rng() < 0.55 ? 'smash' : 'bandeja', aim };
+    return { kind: netDist < 4.5 && rng() < d.smash ? 'smash' : 'bandeja', aim };
   }
   const bothAtNet = opponents.every((o) => fromNet(o.x) < 4.5);
-  if (bothAtNet && rng() < 0.35) return { kind: 'lob', aim: (rng() - 0.5) * 1.2 };
+  if (bothAtNet && rng() < d.lobAtNet) return { kind: 'lob', aim: (rng() - 0.5) * 1.2 };
   if (!bounced && netDist < 4.5) return { kind: 'volley', aim };
   if (rng() < 0.07) return { kind: 'lob', aim: (rng() - 0.5) * 1.2 };
   return { kind: 'drive', aim };
